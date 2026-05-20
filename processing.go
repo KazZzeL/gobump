@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -30,9 +31,14 @@ func validateUpgrade(originalMod, newMod *modfile.File) error {
 
 // upgradeModule attempts to upgrade a single module.
 // The bool is success; the third return is true when the proxy listed no newer versions (no go get run).
-func upgradeModule(proxy *GoProxy, r *modfile.Require, okMod *modfile.File) (*modfile.File, bool, bool) {
+func upgradeModule(
+	proxy *GoProxy,
+	r *modfile.Require,
+	okMod *modfile.File,
+	checkCandidateMod bool,
+) (*modfile.File, bool, bool) {
 	var success bool
-	var noProxyVersions bool
+
 	out.BeginPreformatted(config.GoBinary, "get", r.Mod.Path)
 	defer out.EndPreformattedCond(!success)
 
@@ -43,15 +49,41 @@ func upgradeModule(proxy *GoProxy, r *modfile.Require, okMod *modfile.File) (*mo
 	}
 	if len(versions) == 0 {
 		success = true
-		noProxyVersions = true
-		return okMod, success, noProxyVersions
+		return okMod, success, true
 	}
 
+	retries := config.Retries
+	retractions := make([]*modfile.Retract, 0, len(versions))
+	noVersions := true
+
 	for vi, version := range versions {
-		if vi >= config.Retries {
+		if vi >= retries {
 			out.Error("too many failed attempts, giving up")
 			break
 		}
+
+		if checkCandidateMod {
+			modFile, err := proxy.FetchModFile(r.Mod.Path, version.Version)
+			if err != nil {
+				out.Error(err.Error())
+				continue
+			}
+
+			retractions, err = CheckModFile(modFile, okMod.Go.Version, version.Version, retractions)
+			if err != nil {
+				if config.Verbose {
+					out.Println(err.Error())
+				}
+				if errors.Is(err, ErrVersionIsRetracted) {
+					// retracted version is not an fail
+					retries += 1
+				}
+
+				continue
+			}
+		}
+
+		noVersions = false
 
 		newMod, err := attemptUpgrade(r.Mod.Path, version.Version)
 		if err != nil {
@@ -79,9 +111,12 @@ func upgradeModule(proxy *GoProxy, r *modfile.Require, okMod *modfile.File) (*mo
 		}
 
 		success = true
-		return newMod, success, false
+		return newMod, success, noVersions
 	}
-	return okMod, success, false
+	if noVersions {
+		success = true
+	}
+	return okMod, success, noVersions
 }
 
 // runCommands executes post-upgrade commands against the current go.mod on disk
@@ -147,7 +182,7 @@ func process(original *modfile.File) []Result {
 			continue
 		}
 
-		newMod, upgradeSuccess, noProxyVersions := upgradeModule(proxy, r, okMod)
+		newMod, upgradeSuccess, noProxyVersions := upgradeModule(proxy, r, okMod, config.CheckCandidateMod)
 
 		versionAfter := r.Mod.Version
 		if newMod != nil {

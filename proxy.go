@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
@@ -34,6 +36,8 @@ type GoProxy struct {
 	baseURL string
 	client  *http.Client
 }
+
+var ErrWrongStatusCode = errors.New("failed to check status code")
 
 // ModuleProxyBaseURL resolves the module proxy base URL: a non-empty
 // explicit base URL, else the first usable entry in $GOPROXY, else the public proxy.
@@ -96,7 +100,7 @@ func (p *GoProxy) FetchVersions(modName string, version string) ([]module.Versio
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch versions: %s", resp.Status)
+		return nil, fmt.Errorf("%w: %s", ErrWrongStatusCode, resp.Status)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -150,7 +154,7 @@ func (p *GoProxy) FetchVersionInfo(modPath, version string) (moduleVersionInfo, 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return info, fmt.Errorf("failed to fetch version info: %s", resp.Status)
+		return info, fmt.Errorf("%w: %s", ErrWrongStatusCode, resp.Status)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		return info, fmt.Errorf("failed to decode version info: %w", err)
@@ -162,4 +166,41 @@ func (p *GoProxy) FetchVersionInfo(modPath, version string) (moduleVersionInfo, 
 func discardBody(resp *http.Response) {
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
+}
+
+// fetchModFile fetches the go.mod content for a specific module version from the Go proxy.
+func (p *GoProxy) FetchModFile(modName, version string) (*modfile.File, error) {
+	modName, err := module.EscapePath(modName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to escape module path: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		fmt.Sprintf("%s/%s/@v/%s.mod", p.baseURL, modName, version), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+	setDefaultHTTPHeaders(req)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch mod file: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: %s", ErrWrongStatusCode, resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mod file: %w", err)
+	}
+
+	modFile, err := modfile.Parse("go.mod", data, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse mod file: %w", err)
+	}
+
+	return modFile, nil
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFetchVersions(t *testing.T) {
@@ -74,4 +75,70 @@ func TestFetchVersions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFetchModFile(t *testing.T) {
+	t.Run("successful fetch returns parsed modfile", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/example.com/!module/@v/v1.0.0.mod" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			fmt.Fprintln(w, "module example.com/module")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "go 1.22")
+		}))
+		defer server.Close()
+
+		proxy := NewGoProxy(server.URL)
+		mf, err := proxy.FetchModFile("example.com/Module", "v1.0.0")
+
+		require.NoErrorf(t, err, "expected no error, got %v", err)
+		if mf.Go == nil || mf.Go.Version != "1.22" {
+			t.Errorf("expected Go 1.22, got %v", mf.Go)
+		}
+	})
+
+	t.Run("fetch with retract directives", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(w, "module example.com/module")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "go 1.22")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "retract (")
+			fmt.Fprintln(w, "\tv1.0.0")
+			fmt.Fprintln(w, "\tv1.1.0")
+			fmt.Fprintln(w, ")")
+		}))
+		defer server.Close()
+
+		proxy := NewGoProxy(server.URL)
+		mf, err := proxy.FetchModFile("example.com/Module", "v2.0.0")
+
+		require.NoErrorf(t, err, "expected no error, got %v", err)
+		require.Lenf(t, mf.Retract, 2, "expected 2 retract directives, got %d", len(mf.Retract))
+	})
+
+	t.Run("non-200 status returns ErrWrongStatusCode", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		proxy := NewGoProxy(server.URL)
+		_, err := proxy.FetchModFile("example.com/Module", "v9.9.9")
+
+		require.ErrorIsf(t, err, ErrWrongStatusCode, "expected ErrWrongStatusCode, got %v", err)
+	})
+
+	t.Run("invalid go.mod content returns parse error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(w, "invalid go mod content !!!!")
+		}))
+		defer server.Close()
+
+		proxy := NewGoProxy(server.URL)
+		_, err := proxy.FetchModFile("example.com/Module", "v1.0.0")
+
+		require.Error(t, err, "expected parse error")
+	})
 }

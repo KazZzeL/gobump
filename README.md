@@ -57,6 +57,8 @@ This repository’s `go.mod` targets a recent Go release; use a `gobump` binary 
     	fetch upstream git changelog for each updated module (embedded in per-dependency commit messages when git integration is enabled; otherwise aggregated at end per -changelog-dest)
   -changelog-dest string
     	with -changelog and -no-git (or no usable git work tree): write aggregated changelogs to stdout (default), a file path, or "gist"; ignored when changelogs are committed per dependency (default "stdout")
+  -check-candidate-mod
+      if true, check candidate version's go.mod for go ver and retractions before attempting upgrade
   -dry-run
     	revert to original go.mod after running
   -dst-go-mod string
