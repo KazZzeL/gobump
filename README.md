@@ -73,8 +73,10 @@ This repository’s `go.mod` targets a recent Go release; use a `gobump` binary 
     	output format (console, markdown, none) (default "console")
   -indirect
       if true, bump indirect dependencies
+  -max-bump string
+      maximum bump level (major, minor, patch) (default "major")
   -proxy string
-    	module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)
+      module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)
   -private string
       module private base URL's (default: $GOPRIVATE env)
   -retries int
@@ -167,18 +169,28 @@ jobs:
 
 Action inputs:
 
-* `go_version`: **The version to use** and pin the project to (defaults to stable, but always set this).
-* `setup_go`: Set to `false` to avoid the `setup-go` action (e.g., when a container with a specific Go version is used).
-* `exec`: An optional command to execute for each dependency update.
-* `exec2`: A second optional command to execute for each dependency update.
-* `exclude`: A comma-separated list of modules to exclude from the update.
-* `tidy`: Set to `false` to avoid executing `go mod tidy` after `gobump`.
-* `exec_pr`: An optional command to execute before a PR is made.
-* `pr`: Set to `false` to avoid the creation of a PR.
-* `token`: The GitHub token (used for pull requests and, when changelog is enabled with `gist` output, for creating the Gist; the tool reads `GITHUB_TOKEN` or `GH_TOKEN`).
-* `labels`: Comma-separated GitHub PR labels.
-* `no_git`: When `true`, passes `-no-git` so gobump does not run any git commands (per-dependency commits or reset/clean).
-* `user_name` / `user_email`: Git author identity for per-dependency commits (defaults: `Schutzbot` / `schutzbot@gmail.com`). CI runners often have no global `user.name` / `user.email`; gobump sets these in the local repository before each commit.
+* `go_version`: The version to use and pin the project to (defaults to stable, but always set this).
+* `cgo_enabled`: Enable CGO environment variable (default: `0`).
+* `setup_go`: Set to `false` to avoid the `setup-go` action (default: `true`).
+* `token`: GitHub token with permissions to push branches and open PRs; also used for optional changelog Gist (required).
+* `exec`: An optional command to execute for each dependency update (no shell expansion).
+* `exec2`: A second optional command to execute for each dependency update (no shell expansion).
+* `labels`: Comma-separated list of labels to add to the PR.
+* `tidy`: Run `go mod tidy` after bumping dependencies (default: `true`).
+* `exec_pr`: Bash snippet run before the PR step; always succeeds. Combined stdout/stderr and exit code are appended to the commit message.
+* `pr`: Create a pull request with the changes (default: `true`).
+* `development`: Run in development mode and build from the current repo (default: `false`).
+* `changelog`: Fetch upstream git changelogs for updated modules (default: `false`).
+* `include`: Space-separated list of modules to update (default: all).
+* `exclude`: Comma-separated list of modules to exclude from update.
+* `commit_message`: Commit message for the PR (default: `chore: bump dependencies via gobump`).
+* `no_git`: When `true`, passes `-no-git` so gobump does not run any git commands (default: `false`).
+* `user_name` / `user_email`: Git author identity for per-dependency commits (defaults: `Schutzbot` / `schutzbot@gmail.com`).
+* `check_candidate_mod`: If `true`, check candidate version's `go.mod` for Go version and retractions before attempting upgrade (default: `false`).
+* `indirect`: If `true`, bump indirect dependencies (default: `false`).
+* `proxy`: Module proxy base URL (default: first usable `$GOPROXY` entry, else `https://proxy.golang.org`).
+* `private`: Comma-separated glob patterns for private module paths (default: `$GOPRIVATE`).
+* `max_bump`: Maximum bump level: `major`, `minor`, `patch` (default: `major`).
 
 Tip: When building or testing in a container, use `-buildvcs=false` to avoid `git: detected dubious ownership in repository` permissions errors. Alternatively, set the `git config --system --add safe.directory /path` config option.
 

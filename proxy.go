@@ -14,7 +14,6 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // moduleVersionOrigin is the VCS origin recorded by the module proxy for a release.
@@ -71,10 +70,6 @@ func NewGoProxy(configured string) *GoProxy {
 	}
 }
 
-func isPreRelease(version string) bool {
-	return strings.Contains(version, "-")
-}
-
 // FetchVersions fetches the list of versions for a given module from the Go proxy.
 // It returns a slice of module.Version structs sorted in descending order.
 // Pre-release versions will return pre-release versions
@@ -105,24 +100,16 @@ func (p *GoProxy) FetchVersions(modName string, version string) ([]module.Versio
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
-		line := scanner.Text()
+		candidate := strings.TrimSpace(scanner.Text())
 
-		// skip pre-release versions
-		if !isPreRelease(version) && isPreRelease(line) {
+		if !isValidCandidate(version, candidate) {
 			continue
 		}
 
-		// skip lower versions
-		if semver.Compare(version, line) >= 0 {
-			continue
-		}
-
-		v := module.Version{
+		versions = append(versions, module.Version{
 			Path:    modName,
-			Version: strings.TrimSpace(line),
-		}
-
-		versions = append(versions, v)
+			Version: candidate,
+		})
 	}
 
 	if err := scanner.Err(); err != nil {

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 type GoPrivate struct {
@@ -48,18 +47,14 @@ func (p *GoPrivate) FetchVersions(modPath, version string) ([]module.Version, er
 	}
 
 	versions := make([]module.Version, 0, len(parts)-1)
-	for _, v := range parts[1:] {
-		if !isPreRelease(version) && isPreRelease(v) {
-			continue
-		}
-
-		if semver.Compare(version, v) >= 0 {
+	for _, candidate := range parts[1:] {
+		if !isValidCandidate(version, candidate) {
 			continue
 		}
 
 		versions = append(versions, module.Version{
 			Path:    modPath,
-			Version: v,
+			Version: candidate,
 		})
 	}
 

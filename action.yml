@@ -83,6 +83,10 @@ inputs:
   private:
     description: "Comma-separated glob patterns for private module paths (default: $GOPRIVATE)"
     required: false
+  max_bump:
+    description: "Maximum bump level: major, minor, patch (default: major)"
+    required: false
+    default: "major"
 
 runs:
   using: "composite"
@@ -117,6 +121,7 @@ runs:
           -indirect=${{ inputs.indirect }} \
           -proxy "${{ inputs.proxy }}" \
           -private "${{ inputs.private }}" \
+          -max-bump=${{ inputs.max_bump }} \
           ${{ inputs.include }} | tee /tmp/bump.log
 
     - name: Prepare development environment
@@ -152,6 +157,7 @@ runs:
           -indirect=${{ inputs.indirect }} \
           -proxy "${{ inputs.proxy }}" \
           -private "${{ inputs.private }}" \
+          -max-bump=${{ inputs.max_bump }} \
           ${{ inputs.include }} | tee /tmp/bump.log
 
     - name: Run go mod tidy
