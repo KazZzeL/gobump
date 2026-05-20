@@ -87,7 +87,7 @@ func (out *OutputConsole) PrintSummary(results []Result) {
 		action := "err"
 		if r.Excluded {
 			action = "excluded"
-		} else if r.NoProxyVersions {
+		} else if r.NoVersions {
 			action = "noop"
 		} else if r.Success {
 			if r.VersionAfter == r.VersionBefore {

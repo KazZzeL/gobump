@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
 
 // attemptUpgrade tries to upgrade a module to a specific version.
@@ -33,16 +34,31 @@ func validateUpgrade(originalMod, newMod *modfile.File) error {
 // The bool is success; the third return is true when the proxy listed no newer versions (no go get run).
 func upgradeModule(
 	proxy *GoProxy,
+	private *GoPrivate,
 	r *modfile.Require,
 	okMod *modfile.File,
 	checkCandidateMod bool,
 ) (*modfile.File, bool, bool) {
-	var success bool
+	var (
+		success  bool
+		versions []module.Version
+		err      error
+	)
 
 	out.BeginPreformatted(config.GoBinary, "get", r.Mod.Path)
 	defer out.EndPreformattedCond(!success)
 
-	versions, err := proxy.FetchVersions(r.Mod.Path, r.Mod.Version)
+	isPrivate := private.IsPrivate(r.Mod.Path)
+
+	if isPrivate {
+		if config.Verbose {
+			out.Println("module is in GOPRIVATE, listing versions directly")
+		}
+		versions, err = private.FetchVersions(r.Mod.Path, r.Mod.Version)
+	} else {
+		versions, err = proxy.FetchVersions(r.Mod.Path, r.Mod.Version)
+	}
+
 	if err != nil {
 		out.Error("failed to fetch versions:", err.Error())
 		return okMod, success, false
@@ -62,7 +78,7 @@ func upgradeModule(
 			break
 		}
 
-		if checkCandidateMod {
+		if checkCandidateMod && !isPrivate {
 			modFile, err := proxy.FetchModFile(r.Mod.Path, version.Version)
 			if err != nil {
 				out.Error(err.Error())
@@ -143,6 +159,7 @@ func runCommands(revertTo *modfile.File) bool {
 func process(original *modfile.File) []Result {
 	var results []Result
 	proxy := NewGoProxy(config.ModuleProxy)
+	private := NewGoPrivate(config.ModulePrivate)
 	okMod, err := parseMod(config.GoModSrc)
 	if err != nil {
 		out.Fatal(err.Error(), ERR_PARSE)
@@ -182,7 +199,7 @@ func process(original *modfile.File) []Result {
 			continue
 		}
 
-		newMod, upgradeSuccess, noProxyVersions := upgradeModule(proxy, r, okMod, config.CheckCandidateMod)
+		newMod, upgradeSuccess, noVersions := upgradeModule(proxy, private, r, okMod, config.CheckCandidateMod)
 
 		versionAfter := r.Mod.Version
 		if newMod != nil {
@@ -207,10 +224,10 @@ func process(original *modfile.File) []Result {
 		}
 
 		result := Result{
-			ModulePath:      r.Mod.Path,
-			VersionBefore:   r.Mod.Version,
-			VersionAfter:    versionAfter,
-			NoProxyVersions: noProxyVersions,
+			ModulePath:    r.Mod.Path,
+			VersionBefore: r.Mod.Version,
+			VersionAfter:  versionAfter,
+			NoVersions:    noVersions,
 		}
 
 		if upgradeSuccess {

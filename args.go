@@ -51,6 +51,7 @@ type AppConfig struct {
 	GitUserName       string
 	GitUserEmail      string
 	ModuleProxy       string
+	ModulePrivate     string
 	FailOnError       bool
 }
 
@@ -95,6 +96,7 @@ func InitConfig() {
 	flag.StringVar(&config.GitUserName, "user-name", "Schutzbot", "git user.name for per-dependency commits (local repo config)")
 	flag.StringVar(&config.GitUserEmail, "user-email", "schutzbot@gmail.com", "git user.email for per-dependency commits (local repo config)")
 	flag.StringVar(&config.ModuleProxy, "proxy", "", "module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)")
+	flag.StringVar(&config.ModulePrivate, "private", "", "module private base URL's (default: $GOPRIVATE env)")
 	flag.BoolVar(&config.FailOnError, "fail-on-error", false, "exit with status 1 if any non-excluded module failed to update")
 	flag.Parse()
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"unsafe"
 )
 
 const (
@@ -14,6 +15,8 @@ const (
 	ERR_CMD   = 5
 	ERR_GIT   = 6
 )
+
+var ErrCmd = fmt.Errorf("command error")
 
 // cmd runs a subprocess; when verbose, echoes the command and streams stdout/stderr to out
 // (intended for go get and -exec inside a preformatted block).
@@ -42,7 +45,23 @@ func runCmd(name string, args []string, logOutput bool) error {
 	return nil
 }
 
-var ErrCmd = fmt.Errorf("command error")
+// cmdOutput runs a command and returns its stdout output.
+func cmdOutput(cmd string, envs []string, args ...string) (string, error) {
+	if config.Verbose {
+		out.Println(cmd, strings.Join(args, " "))
+	}
+	c := exec.Command(cmd, args...)
+	c.Env = os.Environ()
+	if len(envs) > 0 {
+		c.Env = append(c.Env, envs...)
+	}
+	c.Stderr = out
+	data, err := c.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(unsafe.String(unsafe.SliceData(data), len(data))), nil
+}
 
 func cmds(str string) error {
 	parts := strings.Fields(str)

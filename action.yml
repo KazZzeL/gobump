@@ -73,7 +73,12 @@ inputs:
     description: "If true, check candidate version's go.mod for go version and retractions before attempting upgrade"
     required: false
     default: "false"
-
+  proxy:
+    description: "Module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)"
+    required: false
+  private:
+    description: "Comma-separated glob patterns for private module paths (default: $GOPRIVATE)"
+    required: false
 
 runs:
   using: "composite"
@@ -97,7 +102,6 @@ runs:
         go version
         go env
         go run github.com/lzap/gobump@latest \
-          \
           -no-git=${{ inputs.no_git }} \
           -user-name="${{ inputs.user_name }}" \
           -user-email="${{ inputs.user_email }}" \
@@ -106,6 +110,8 @@ runs:
           -changelog-dest="/tmp/changelog.txt" \
           -exclude "${{ inputs.exclude }}" \
           -check-candidate-mod=${{ inputs.check_candidate_mod }} \
+          -proxy "${{ inputs.proxy }}" \
+          -private "${{ inputs.private }}" \
           ${{ inputs.include }} | tee /tmp/bump.log
 
     - name: Prepare development environment
@@ -130,7 +136,6 @@ runs:
         go version
         go env
         go run . \
-          \
           -no-git=${{ inputs.no_git }} \
           -user-name="${{ inputs.user_name }}" \
           -user-email="${{ inputs.user_email }}" \
@@ -139,6 +144,8 @@ runs:
           -changelog-dest="/tmp/changelog.txt" \
           -exclude "${{ inputs.exclude }}" \
           -check-candidate-mod=${{ inputs.check_candidate_mod }} \
+          -proxy "${{ inputs.proxy }}" \
+          -private "${{ inputs.private }}" \
           ${{ inputs.include }} | tee /tmp/bump.log
 
     - name: Run go mod tidy

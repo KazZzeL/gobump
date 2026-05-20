@@ -1,12 +1,12 @@
 package main
 
 type Result struct {
-	ModulePath      string
-	Success         bool
-	VersionBefore   string
-	VersionAfter    string
-	Excluded        bool
-	NoProxyVersions bool // proxy returned no semver newer than current (no go get attempted)
+	ModulePath    string
+	Success       bool
+	VersionBefore string
+	VersionAfter  string
+	Excluded      bool
+	NoVersions    bool // no semver newer than current (no go get attempted)
 }
 
 // resultsHaveErrors reports whether any module that was considered for update

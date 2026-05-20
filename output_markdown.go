@@ -134,7 +134,7 @@ func (out *OutputMarkdown) PrintSummary(results []Result) {
 		action := "E"
 		if r.Excluded {
 			action = "X"
-		} else if r.NoProxyVersions {
+		} else if r.NoVersions {
 			action = "N"
 		} else if r.Success {
 			if r.VersionAfter == r.VersionBefore {

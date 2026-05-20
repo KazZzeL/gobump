@@ -73,6 +73,8 @@ This repository’s `go.mod` targets a recent Go release; use a `gobump` binary 
     	output format (console, markdown, none) (default "console")
   -proxy string
     	module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)
+  -private string
+      module private base URL's (default: $GOPRIVATE env)
   -retries int
     	number of downgrade retries for each module (default: 5) (default 5)
   -no-git
