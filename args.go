@@ -47,6 +47,7 @@ type AppConfig struct {
 	Dependencies      []string
 	CheckCandidateMod bool
 	Exclude           commaSeparatedStringSlice
+	Indirect          bool
 	NoGit             bool
 	GitUserName       string
 	GitUserEmail      string
@@ -92,6 +93,7 @@ func InitConfig() {
 	flag.BoolVar(&config.Changelog, "changelog", false, "fetch upstream git changelog for each updated module (embedded in per-dependency commit messages when git integration is enabled; otherwise aggregated at end per -changelog-dest)")
 	flag.StringVar(&config.ChangelogDest, "changelog-dest", "stdout", "with -changelog and -no-git (or no usable git work tree): write aggregated changelogs to stdout (default), a file path, or \"gist\"; ignored when changelogs are committed per dependency")
 	flag.BoolVar(&config.CheckCandidateMod, "check-candidate-mod", false, "if true, check candidate version's go.mod for go version and retractions before attempting upgrade")
+	flag.BoolVar(&config.Indirect, "indirect", false, "if true, bump indirect dependencies")
 	flag.BoolVar(&config.NoGit, "no-git", false, "if true, skip all git operations (no per-dependency commits or reset/clean on failure)")
 	flag.StringVar(&config.GitUserName, "user-name", "Schutzbot", "git user.name for per-dependency commits (local repo config)")
 	flag.StringVar(&config.GitUserEmail, "user-email", "schutzbot@gmail.com", "git user.email for per-dependency commits (local repo config)")

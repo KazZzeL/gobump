@@ -71,6 +71,8 @@ This repository’s `go.mod` targets a recent Go release; use a `gobump` binary 
     	exit with status 1 if any non-excluded module failed to update
   -format string
     	output format (console, markdown, none) (default "console")
+  -indirect
+      if true, bump indirect dependencies
   -proxy string
     	module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)
   -private string

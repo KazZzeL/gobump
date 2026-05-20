@@ -180,7 +180,7 @@ func process(original *modfile.File) []Result {
 	}
 
 	for _, r := range dependencies {
-		if r.Indirect {
+		if r.Indirect && !config.Indirect {
 			continue
 		}
 

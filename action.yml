@@ -73,6 +73,10 @@ inputs:
     description: "If true, check candidate version's go.mod for go version and retractions before attempting upgrade"
     required: false
     default: "false"
+  indirect:
+    description: "If true, bump indirect dependencies"
+    required: false
+    default: "false"
   proxy:
     description: "Module proxy base URL (default: first usable $GOPROXY entry, else https://proxy.golang.org)"
     required: false
@@ -110,6 +114,7 @@ runs:
           -changelog-dest="/tmp/changelog.txt" \
           -exclude "${{ inputs.exclude }}" \
           -check-candidate-mod=${{ inputs.check_candidate_mod }} \
+          -indirect=${{ inputs.indirect }} \
           -proxy "${{ inputs.proxy }}" \
           -private "${{ inputs.private }}" \
           ${{ inputs.include }} | tee /tmp/bump.log
@@ -144,6 +149,7 @@ runs:
           -changelog-dest="/tmp/changelog.txt" \
           -exclude "${{ inputs.exclude }}" \
           -check-candidate-mod=${{ inputs.check_candidate_mod }} \
+          -indirect=${{ inputs.indirect }} \
           -proxy "${{ inputs.proxy }}" \
           -private "${{ inputs.private }}" \
           ${{ inputs.include }} | tee /tmp/bump.log
